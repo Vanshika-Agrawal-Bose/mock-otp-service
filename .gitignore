@@ -1,0 +1,7 @@
+!.vscode
+.vscode/*
+!.vscode/launch.json
+.DS_Store
+l.envvars
+.env
+service/local.envvars.docker
