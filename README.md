@@ -15,6 +15,8 @@ A Go-based microservice that simulates an OTP (One-Time Password) system, allowi
 
 ## 🧱 Architecture
 
+![alt text](architecture.jpg)
+
 ### 🔹 API Endpoints
 | Method | Endpoint         | Description              |
 |--------|------------------|--------------------------|
@@ -22,17 +24,15 @@ A Go-based microservice that simulates an OTP (One-Time Password) system, allowi
 | POST   | `/otp/verify`    | Verify a submitted OTP   |
 
 ### 🔹 Internals
-- OTPs are stored in-memory with a **TTL value** (e.g. 300s).
-- **Go channels** and a **goroutine-based expiry watcher** are used to monitor and delete expired OTPs.
-- **Internal queue** is used to inform of requests that come into the system and when OTP expires.
 
-## 🧠 Key Concepts Demonstrated
-
-- **Go concurrency** with goroutines and channels
-- TTL-based OTP expiration using a background watcher
-- Docker-based containerization
-- Kubernetes Deployments, Services, ConfigMaps
-- Minikube-based local cluster deployment
+- OTPs are stored in-memory with a defined TTL (e.g., 300s).
+- A goroutine-based expiry watcher monitors and deletes expired OTPs using Go channels.
+- An internal queue (channel) is used to communicate new OTP requests and expiry scheduling.
+- Demonstrates Go concurrency primitives (goroutines, channels) in action.
+- Implements TTL-based expiration logic in a lightweight, event-driven manner.
+- Fully Dockerized for portability.
+- Supports Kubernetes Deployments, Services, and ConfigMaps.
+- Deployable on a local Minikube cluster for testing and demonstration.
 
 ## 🧪 Example Curl Requests
 
@@ -119,7 +119,7 @@ kubectl logs -f otp-deployment-7c4c9755b8-nkvb6
 mock-otp-service/
 ├── handlers/         # API handlers
 ├── store/            # OTP storage logic
-├── events/           # Expiry event and queue logic
+├── events/           # Broker and pub-sub queue logic
 ├── main.go           # Entry point
 ├── Dockerfile        # Container build instructions
 ├── k8s/              # Kubernetes YAMLs
@@ -134,5 +134,3 @@ mock-otp-service/
 ## 💬 Future Improvements
 - Integrate real SMS/email provider
 - Add metrics and alerting (e.g. Prometheus + Grafana)
-
-
