@@ -44,7 +44,7 @@ func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 
 	encoder := json.NewEncoder(w)
 	encoder.Encode(map[string]string{
-		"message": "otp sent",
+		"message": "OTP generated successfully",
 		"code":    code,
 	})
 }
@@ -58,32 +58,33 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	if err := decoder.Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, "Invalid Request", http.StatusBadRequest)
 		return
 	}
 
 	stored, err := h.store.Get(req.User)
 
-	if req.Code != stored {
-		http.Error(w, "invalid code", http.StatusUnauthorized)
-		return
-	}
-
 	switch err {
 	case store.ErrCodeExpired:
-		http.Error(w, "otp expired", http.StatusGone)
+		http.Error(w, "OTP Expired", http.StatusGone)
 		return
 
 	case store.ErrNotFound:
-		http.Error(w, "no otp for user", http.StatusNotFound)
+		http.Error(w, "No OTP available for user", http.StatusNotFound)
 		return
 
 	case nil:
 		// continue below
 	default:
-		http.Error(w, "server error", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
+	if req.Code != stored {
+		http.Error(w, "Invalid OTP", http.StatusUnauthorized)
+		return
+	}
+
 	// Delete immediately upon successful use
 	h.store.Delete(req.User)
 	h.broker.Publish(events.Event{
@@ -95,5 +96,5 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	encoder := json.NewEncoder(w)
-	encoder.Encode(map[string]string{"message": "verified"})
+	encoder.Encode(map[string]string{"Message": "OTP Verified Successfully!"})
 }

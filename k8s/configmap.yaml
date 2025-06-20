@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: otp-config
 data:
-  ttl: "90"
+  ttl: "60"

@@ -87,6 +87,12 @@ kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 ```
 
+To redeploy:
+
+```
+kubectl rollout restart deployment otp-deployment
+```
+
 ### Get the service URL
 ```bash
 minikube service otp-service --url

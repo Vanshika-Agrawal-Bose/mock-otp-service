@@ -21,13 +21,17 @@ type OTPStore interface {
 	Delete(user string)
 }
 
+type otpEntry struct {
+	code     string
+	deadline time.Time
+}
+
 // sttoring 2 major data points: user and code map & channel of scheduled expiry events
 type memoryStore struct {
-	mu          sync.RWMutex
-	data        map[string]string
-	expiryTimes map[string]time.Time // NEW: track deadlines
-	expiries    chan expiry
-	broker      *events.Broker
+	mu       sync.RWMutex
+	data     map[string]otpEntry
+	expiries chan expiry
+	broker   *events.Broker
 }
 
 // to store: expire user's data at particular time
@@ -38,12 +42,11 @@ type expiry struct {
 
 func NewMemoryStore(broker *events.Broker) OTPStore {
 	ms := &memoryStore{
-		data:        make(map[string]string),
-		expiryTimes: make(map[string]time.Time), // NEW
-		expiries:    make(chan expiry, 100),
-		broker:      broker,
+		data:     make(map[string]otpEntry),
+		expiries: make(chan expiry, 100),
+		broker:   broker,
 	}
-	// using a go routine to start the process in background
+	// Start background expiry watcher
 	go ms.startExpiryWatcher()
 	return ms
 }
@@ -53,8 +56,7 @@ func (m *memoryStore) Set(user, code string, ttl time.Duration) {
 
 	// acquires a rw lock
 	m.mu.Lock()
-	m.data[user] = code
-	m.expiryTimes[user] = deadline
+	m.data[user] = otpEntry{code: code, deadline: deadline}
 	m.mu.Unlock()
 
 	// sending an expiry event into channel with a scheduled ttl
@@ -64,21 +66,21 @@ func (m *memoryStore) Set(user, code string, ttl time.Duration) {
 func (m *memoryStore) Get(user string) (string, error) {
 	// acquires a read lock
 	m.mu.RLock()
-	code, exists := m.data[user]
-	deadline, hasDeadline := m.expiryTimes[user]
+	entry, exists := m.data[user]
 	m.mu.RUnlock()
 
 	// if no code is found for the user, an error is thrown
 	if !exists {
 		return "", ErrNotFound
 	}
+
 	// if its expired
-	if hasDeadline && time.Now().After(deadline) {
-		// it’s expired → clean up and signal expiry
+	if time.Now().After(entry.deadline) {
+		// Delay delete until here
 		m.Delete(user)
 		return "", ErrCodeExpired
 	}
-	return code, nil
+	return entry.code, nil
 }
 
 func (m *memoryStore) Delete(user string) {
@@ -110,7 +112,7 @@ func (m *memoryStore) startExpiryWatcher() {
 			for _, e := range pending {
 				// if current time >= expiry time, delete the user's OTP
 				if now.After(e.at) {
-					m.Delete(e.user)
+					// m.Delete(e.user)
 					m.broker.Publish(events.Event{
 						Type: "otp_expired",
 						Data: map[string]string{
