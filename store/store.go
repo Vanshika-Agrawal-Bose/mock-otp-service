@@ -112,13 +112,20 @@ func (m *memoryStore) startExpiryWatcher() {
 			for _, e := range pending {
 				// if current time >= expiry time, delete the user's OTP
 				if now.After(e.at) {
-					// m.Delete(e.user)
-					m.broker.Publish(events.Event{
-						Type: "otp_expired",
-						Data: map[string]string{
-							"user": e.user,
-						},
-					})
+					// Check if the OTP still exists before expiring
+					m.mu.RLock()
+					_, exists := m.data[e.user]
+					m.mu.RUnlock()
+
+					if exists {
+						// m.Delete(e.user)
+						m.broker.Publish(events.Event{
+							Type: "otp_expired",
+							Data: map[string]string{
+								"user": e.user,
+							},
+						})
+					}
 				} else {
 					next = append(next, e)
 				}
